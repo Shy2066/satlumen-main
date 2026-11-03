@@ -18,6 +18,8 @@ from pathlib import Path
 import numpy as np
 import yaml
 
+from src.utils.common import compute_metrics
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "configs/default.yaml"
 FORMAL_CONFIG = ROOT / "configs/formal_frozen_directional_count.yaml"
@@ -287,6 +289,15 @@ def build_formal_test_jobs(python: str, cfg: dict, run_id: str,
     return jobs, plan
 
 
+def metrics_from_prediction_file(path: Path) -> dict:
+    with np.load(path, allow_pickle=False) as archive:
+        required = {"predictions", "labels"}
+        missing = required.difference(archive.files)
+        if missing:
+            raise ValueError(f"{path} 缺少预测字段: {sorted(missing)}")
+        return compute_metrics(archive["labels"], archive["predictions"])
+
+
 def summarize_test_metrics(results: list[dict]) -> dict:
     summary = {}
     metric_names = ("Accuracy", "Precision", "Recall", "F1-score")
@@ -302,8 +313,8 @@ def summarize_test_metrics(results: list[dict]) -> dict:
             values = [float(item["metrics"][name])
                       for item in direction_results]
             metrics[name] = {
-                "mean": round(float(np.mean(values)), 4),
-                "sample_std": round(float(np.std(values, ddof=1)), 4)
+                "mean": round(float(np.mean(values)), 2),
+                "sample_std": round(float(np.std(values, ddof=1)), 2)
                 if len(values) > 1 else 0.0,
             }
         summary[direction] = {
@@ -473,7 +484,7 @@ def main(argv=None) -> int:
             "dataset": item["dataset"],
             "source_dataset": item["source_dataset"],
             "test_samples": result["test_samples"],
-            "metrics": result["metrics"],
+            "metrics": metrics_from_prediction_file(Path(item["prediction_file"])),
             "output": item["output"],
             "prediction_file": item["prediction_file"],
         })

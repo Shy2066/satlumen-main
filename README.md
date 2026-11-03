@@ -31,10 +31,13 @@ scripts/          主流程、单任务训练与评估
 用于正式评估。两者保持相同模型、表示和数据根目录；阶段字段用于避免误用配置。
 执行路径默认相对项目根目录，命令从该目录运行。
 
-## 数据准备
+## 数据来源与准备
 
-数据与权重未包含在本项目中。数据来源和使用权限遵循原始公开数据集说明。
-只使用干净 Fiber/Starlink 数据。现成分区文件应放在：
+数据和权重未包含在本项目中。本项目只使用原始数据集中的干净 Tor-over-Fiber 与 Tor-over-Starlink 轨迹。
+来源为 [Zenodo 数据集记录](https://zenodo.org/records/10641853)（版本 v2，DOI: 10.5281/zenodo.10641853）中的 `WFdata75x80.zip`；该记录列出的归档 MD5 为 `689527862a162a1a5a448d05038e7a1b`。
+数据集配套论文为 [Connecting the Dots in the Sky: Website Fingerprinting in Low Earth Orbit Satellite Internet](https://doi.org/10.14722/spacesec.2024.23015)。本项目不重新分发原始轨迹；下载、使用或再分发须遵循 Zenodo 记录 Rights/License 栏及原数据发布者的条件。若记录未明确许可，不应推定可再分发。
+
+现成分区文件应放在：
 
 ```text
 npz_dataset/
@@ -106,7 +109,7 @@ python scripts/test.py \
 
 模型输入为 120 秒、2×2700 方向计数，前 5,000 个有效事件；100 epochs、batch 64。
 输出包含逐项指标、预测及标签；`F1-score` 字段对应 Macro-F1，指标为百分制。
-三种子汇总使用样本标准差 `ddof=1`。
+新生成的单项评估 JSON 保留未舍入的百分制指标。汇总时从每项 `.predictions.npz` 的 `labels` 和 `predictions` 重算分数（续跑的旧结果也如此），先对三个种子的原始值计算均值和样本标准差（`ddof=1`），最后才舍入到两位小数，对应论文表格精度。
 
 
 许可状态见 `LICENSE_NOTICE.md`。

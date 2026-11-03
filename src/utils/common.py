@@ -55,10 +55,10 @@ class Args:
 
 
 def compute_metrics(y_true, y_pred, average="macro"):
-    """计算分类指标（百分制）"""
+    """计算分类指标（百分制，保留全精度）"""
     return {
-        "Accuracy": round(accuracy_score(y_true, y_pred) * 100, 2),
-        "Precision": round(precision_score(y_true, y_pred, average=average, zero_division=0) * 100, 2),# type: ignore
-        "Recall": round(recall_score(y_true, y_pred, average=average, zero_division=0) * 100, 2),# type: ignore
-        "F1-score": round(f1_score(y_true, y_pred, average=average, zero_division=0) * 100, 2),# type: ignore
+        "Accuracy": float(accuracy_score(y_true, y_pred) * 100),
+        "Precision": float(precision_score(y_true, y_pred, average=average, zero_division=0) * 100),  # type: ignore
+        "Recall": float(recall_score(y_true, y_pred, average=average, zero_division=0) * 100),  # type: ignore
+        "F1-score": float(f1_score(y_true, y_pred, average=average, zero_division=0) * 100),  # type: ignore
     }

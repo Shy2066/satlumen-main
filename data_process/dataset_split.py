@@ -43,8 +43,6 @@ def split_dataset(dataset: str, seed: int = DEFAULT_SEED, root: Path | None = No
             raise ValueError(f"{key} 与标签长度不匹配")
     if "sample_ids" in identities and len(np.unique(identities["sample_ids"])) != len(y):
         raise ValueError("sample_ids 重复")
-    if dataset == "93_1100_wang" and len(identities) != 3:
-        raise ValueError("93 类数据必须重新转换以保留样本身份与同源组")
     # Union both metadata groups and actual byte hashes, so stale grouping cannot
     # place a local duplicate on both sides of a split.
     parents = np.arange(len(y))

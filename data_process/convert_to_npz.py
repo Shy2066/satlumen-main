@@ -54,10 +54,6 @@ def convert_dataset(dataset, root=ROOT, manifest=None, refresh=False, strict_tim
                     remap_labels=False):
     safe_dataset(dataset)
     directory = Path(root) / "dataset" / dataset
-    if manifest is None and dataset == "93_1100_wang":
-        manifest = directory / "metadata/training_candidates.csv"
-    if dataset == "93_1100_wang":
-        strict_timestamps = True
     records = selected_files(directory, manifest)
     if not records:
         raise ValueError("没有可转换的轨迹")
