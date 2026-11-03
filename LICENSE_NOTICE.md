@@ -2,7 +2,7 @@
 
 ## Code
 
-This repository is shared for peer review. No public reuse or redistribution license is granted by making the files available. Copyright remains with the applicable rights holders. Before public release, the authors must confirm authorship and third-party permissions, then add a standard license file stating the chosen terms. Dependencies remain under their respective upstream licenses.
+The code in this repository is licensed under the MIT License; see `LICENSE`. Third-party components and dependencies remain under their respective licenses. The code license does not grant rights to the original dataset or other third-party materials not owned by the code's copyright holders.
 
 ## Dataset
 

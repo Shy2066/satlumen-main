@@ -93,8 +93,9 @@ def verify_torch_interpreter(python: str) -> None:
     if probe.returncode:
         detail = (probe.stderr or probe.stdout).strip()
         raise RuntimeError(
-            f"当前 Python 无法导入 PyTorch: {python}\n{detail}\n"
-            "请先激活 environment.yml 指定的环境，再使用其中的 Python 启动 runner")
+            f"PyTorch could not be imported by Python interpreter {python}:\n{detail}\n"
+            "Create a virtual environment, install dependencies from requirements.txt, "
+            "and select that Python interpreter")
 
 
 def checkpoint_path(cfg: dict, run_id: str, dataset: str, seed: int) -> Path:

@@ -1,43 +1,42 @@
-# SatLumen main experiment
+# SatLumen Main Experiment
 
-本项目只包含 SatLumen 在干净 Fiber/Starlink 数据上的主试验：
-输入处理、方向计数、训练、源域验证选模及四方向评估。
-三种子为 42、2024、2025，共 6 次训练、12 项评估；不包含其他攻击方法。
+This repository contains only SatLumen's main experiments on the clean Fiber and Starlink datasets: input processing, the directional-count representation, training, source-domain validation for checkpoint selection, and evaluation in four directions. It uses three random seeds (42, 2024, and 2025), for a total of six training runs and twelve evaluations. Other attack methods are not included.
 
-## 环境
+## Requirements
 
-从本项目根目录执行：
+- Python 3.10
+- pip
+- For GPU experiments, an NVIDIA driver compatible with CUDA 11.8. The original paper experiments used an RTX 3090.
+
+The dependency versions are pinned in `requirements.txt` based on checks against the local environment. They have not yet been validated by installing them into a fresh environment.
+
+Create and activate a virtual environment, then install the dependencies from the repository root:
 
 ```bash
-conda env create -f environment.yml
-conda activate satlumen-main
+python3.10 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-环境文件固定 Python 3.10.19、PyTorch 2.1.2+cu118 和本次检查使用的依赖版本。
-其余依赖版本来自当前本地环境核对，不宣称是历史实验的完整环境快照。
-GPU 实验需要支持 CUDA 11.8 的驱动；原论文使用 RTX 3090。
-尚未在全新环境中执行依赖下载安装。
-
-## 文件结构
+## Repository Structure
 
 ```text
-configs/          训练配置和正式评估配置
-data_process/     轨迹转换、固定划分、计数缓存
-src/              主模型、数据读取、训练器和工具
-scripts/          主流程、单任务训练与评估
+configs/          Training and formal evaluation configurations
+data_process/    Trace conversion, fixed splits, and count-cache preparation
+src/              Main model, data loading, trainer, and utilities
+scripts/          Main workflow, single-task training, and evaluation
 ```
 
-`configs/default.yaml` 用于训练编排，`formal_frozen_directional_count.yaml`
-用于正式评估。两者保持相同模型、表示和数据根目录；阶段字段用于避免误用配置。
-执行路径默认相对项目根目录，命令从该目录运行。
+`configs/default.yaml` is used to orchestrate training. `configs/formal_frozen_directional_count.yaml` is used for formal evaluation. Both configurations use the same model, representation, and data root; their stage fields help prevent accidental misuse. Paths are resolved relative to the repository root, so run commands from that directory.
 
-## 数据来源与准备
+## Data Source and Preparation
 
-数据和权重未包含在本项目中。本项目只使用原始数据集中的干净 Tor-over-Fiber 与 Tor-over-Starlink 轨迹。
-来源为 [Zenodo 数据集记录](https://zenodo.org/records/10641853)（版本 v2，DOI: 10.5281/zenodo.10641853）中的 `WFdata75x80.zip`；该记录列出的归档 MD5 为 `689527862a162a1a5a448d05038e7a1b`。
-数据集配套论文为 [Connecting the Dots in the Sky: Website Fingerprinting in Low Earth Orbit Satellite Internet](https://doi.org/10.14722/spacesec.2024.23015)。本项目不重新分发原始轨迹；下载、使用或再分发须遵循 Zenodo 记录 Rights/License 栏及原数据发布者的条件。若记录未明确许可，不应推定可再分发。
+The data and model weights are not included. This project uses only the clean Tor-over-Fiber and Tor-over-Starlink traces from the original dataset. The source is `WFdata75x80.zip`, version v2, in the [Zenodo dataset record](https://zenodo.org/records/10641853) (DOI: [10.5281/zenodo.10641853](https://doi.org/10.5281/zenodo.10641853)). The archive MD5 listed by the record is `689527862a162a1a5a448d05038e7a1b`.
 
-现成分区文件应放在：
+The dataset is associated with the paper [Connecting the Dots in the Sky: Website Fingerprinting in Low Earth Orbit Satellite Internet](https://doi.org/10.14722/spacesec.2024.23015). This project does not redistribute the original traces. Downloading, using, or redistributing the dataset is subject to the rights, license, and conditions specified by the Zenodo record and the original data providers. If the record does not clearly state a license, do not assume redistribution is permitted.
+
+Place pre-generated split files in this layout:
 
 ```text
 npz_dataset/
@@ -51,52 +50,46 @@ npz_dataset/
     └── test.npz
 ```
 
-NPZ 包含 `X`、`y` 和 `sample_ids`。`X` 为 `(N,10000,2)` 的补零事件数组，
-两列为相对时间和带符号方向标记；`y` 为 0–74 的类别标签。
-训练/验证/评估各为 4,860/540/600 项，两个域的同一访问保持相同划分角色。
+Each NPZ file contains `X`, `y`, and `sample_ids`. `X` has shape `(N, 10000, 2)` and stores padded events with relative timestamps and signed direction markers. `y` contains class labels from 0 to 74. The train, validation, and test splits contain 4,860, 540, and 600 samples, respectively. Each visit has the same split role in both domains.
 
-已有固定分区时，生成计数缓存：
+To generate count caches from existing fixed splits, run:
 
 ```bash
 python data_process/prepare_datasets.py --skip-convert --skip-split --splits train valid test
 ```
 
-输入内容哈希由计数缓存和主流程记录。
+The count cache and main workflow record hashes of their inputs.
 
-若从原始文本轨迹开始，将文件放入 `dataset/tor_fiber/` 和
-`dataset/tor_starlink/`，文件名为 `<类别>-<访问编号>`，每行两列、制表符分隔。
-先用下列命令查看计划，再手动执行转换和划分：
+To start from raw text traces, place the files in `dataset/tor_fiber/` and `dataset/tor_starlink/`. Name each file `<class>-<visit-number>` and use two tab-separated columns per line. Review the plan first, then run conversion and splitting:
 
 ```bash
 python data_process/prepare_datasets.py --splits train valid test --dry-run
 python data_process/prepare_datasets.py --splits train valid test
 ```
 
-复现论文结果时应使用相同的固定分区及样本顺序。
+For reproducing the paper results, use the same fixed splits and sample order.
 
-## 运行
+## Running the Experiments
 
-只查看 6 次训练、12 项评估的计划，不执行训练：
+Preview the six training runs and twelve evaluations without starting training:
 
 ```bash
 python scripts/run_main_experiment.py --dry-run
 ```
 
-完整主试验，由操作者手动执行：
+Run the complete main experiment:
 
 ```bash
 python scripts/run_main_experiment.py --gpus 0
 ```
 
-流程先完成两域三种子训练，每个模型按源域验证 Macro-F1 选取权重，随后运行
-F→F、S→S、F→S、S→F。运行ID自动生成，输出分别位于 `logs/`、`checkpoints/`
-和 `results/`。续跑使用日志中的原运行ID：
+The workflow first trains models for both domains and all three seeds. Each model is selected using source-domain validation Macro-F1, then evaluated on Fiber-to-Fiber, Starlink-to-Starlink, Fiber-to-Starlink, and Starlink-to-Fiber. A run ID is generated automatically. Outputs are written to `logs/`, `checkpoints/`, and `results/`. To resume a run, use its original run ID from the log:
 
 ```bash
 python scripts/run_main_experiment.py --gpus 0 --resume RUN_ID
 ```
 
-单独训练、评估示例：
+Examples for running an individual training or evaluation task:
 
 ```bash
 python scripts/train.py --dataset tor_fiber --seed 42 --run-id manual_fiber42
@@ -107,9 +100,8 @@ python scripts/test.py \
   --output results/manual_fiber42/F_to_S_seed_42.json
 ```
 
-模型输入为 120 秒、2×2700 方向计数，前 5,000 个有效事件；100 epochs、batch 64。
-输出包含逐项指标、预测及标签；`F1-score` 字段对应 Macro-F1，指标为百分制。
-新生成的单项评估 JSON 保留未舍入的百分制指标。汇总时从每项 `.predictions.npz` 的 `labels` 和 `predictions` 重算分数（续跑的旧结果也如此），先对三个种子的原始值计算均值和样本标准差（`ddof=1`），最后才舍入到两位小数，对应论文表格精度。
+The model input covers 120 seconds and uses directional counts with shape `2 x 2700`; the first 5,000 valid events are used. Training runs for 100 epochs with a batch size of 64. Outputs include per-sample metrics, predictions, and labels. The `F1-score` field is Macro-F1, and metrics use a 0–100 scale. Newly generated single-evaluation JSON files retain full-precision metrics. For summaries, scores are recomputed from the `labels` and `predictions` arrays in each `.predictions.npz` file, including when resuming older runs. The mean and sample standard deviation (`ddof=1`) are computed across the three seeds, and values are rounded to two decimal places only at the end, matching the precision of the paper tables.
 
+## Licensing
 
-许可状态见 `LICENSE_NOTICE.md`。
+The code is licensed under the MIT License; see [`LICENSE`](LICENSE). Dataset rights and conditions are separate; see [`LICENSE_NOTICE.md`](LICENSE_NOTICE.md) and the original Zenodo record.
