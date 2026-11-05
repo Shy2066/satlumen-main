@@ -3,6 +3,7 @@
 供 scripts/ 和 src/ 共享使用
 """
 
+import copy
 import random
 import yaml
 import numpy as np
@@ -11,10 +12,31 @@ import torch.backends.cudnn as cudnn
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
-def load_config(path):
-    """加载 YAML 配置文件"""
-    with open(path) as f:
-        return yaml.safe_load(f)
+def _merge_config(base, overrides):
+    """Recursively merge a profile into shared YAML settings."""
+    merged = copy.deepcopy(base)
+    for key, value in overrides.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge_config(merged[key], value)
+        else:
+            merged[key] = copy.deepcopy(value)
+    return merged
+
+
+def load_config(path, profile=None):
+    """Load a YAML config, optionally resolving one named profile."""
+    with open(path, encoding="utf-8") as f:
+        config = yaml.safe_load(f) or {}
+    profiles = config.pop("profiles", None)
+    if profiles is None:
+        return config
+    if profile is None:
+        raise ValueError(f"Config {path} defines profiles; select one explicitly")
+    if profile not in profiles:
+        raise ValueError(
+            f"Unknown profile {profile!r} in {path}; available profiles: "
+            f"{', '.join(sorted(profiles))}")
+    return _merge_config(config, profiles[profile])
 
 
 def set_seed(seed):

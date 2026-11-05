@@ -16,13 +16,11 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-import yaml
 
-from src.utils.common import compute_metrics
+from src.utils.common import compute_metrics, load_config
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "configs/default.yaml"
-FORMAL_CONFIG = ROOT / "configs/formal_frozen_directional_count.yaml"
 DOMAINS = ("tor_fiber", "tor_starlink")
 EXPERIMENT_SEEDS = (42, 2024, 2025)
 DIRECTION_EVALUATIONS = (
@@ -109,7 +107,7 @@ def _data_root(cfg: dict) -> Path:
 
 
 def prepare_caches(python: str, config: Path) -> None:
-    cfg = yaml.safe_load(config.read_text(encoding="utf-8"))
+    cfg = load_config(str(config), profile="validation_candidate")
     if cfg.get("experiment", {}).get("stage") != "validation_candidate":
         raise ValueError("候选 runner 只接受 stage=validation_candidate")
     if cfg.get("representation", {}).get("kind") != "directional_count":
@@ -235,7 +233,7 @@ def collect_validation_summary(cfg: dict, run_id: str,
 
 
 def build_formal_test_jobs(python: str, cfg: dict, run_id: str,
-                           seeds: tuple[int, ...], formal_config: Path,
+                           seeds: tuple[int, ...], config_path: Path,
                            run_dir: Path, result_dir: Path,
                            resume: bool = False) -> tuple[list, list[dict]]:
     jobs = []
@@ -270,7 +268,7 @@ def build_formal_test_jobs(python: str, cfg: dict, run_id: str,
                 status = "completed"
             else:
                 command = [
-                    python, "scripts/test.py", "--config", str(formal_config),
+                    python, "scripts/test.py", "--config", str(config_path),
                     "--dataset", target, "--source-dataset", source,
                     "--seed", str(seed), "--checkpoint", str(checkpoint),
                     "--output", str(output),
@@ -341,13 +339,11 @@ def main(argv=None) -> int:
     config = config.resolve()
     if not config.is_file():
         raise FileNotFoundError(config)
-    cfg = yaml.safe_load(config.read_text(encoding="utf-8"))
+    cfg = load_config(str(config), profile="validation_candidate")
     runtime = resolved_runtime(cfg)
     if cfg.get("experiment", {}).get("stage") != "validation_candidate":
         raise RuntimeError("训练配置必须使用 stage=validation_candidate")
-    if not FORMAL_CONFIG.is_file():
-        raise FileNotFoundError(FORMAL_CONFIG)
-    formal_cfg = yaml.safe_load(FORMAL_CONFIG.read_text(encoding="utf-8"))
+    formal_cfg = load_config(str(config), profile="formal_frozen")
     if formal_cfg.get("experiment", {}).get("stage") != "formal_frozen":
         raise RuntimeError("正式评估配置必须使用 stage=formal_frozen")
     if formal_cfg.get("experiment", {}).get("seeds") != list(EXPERIMENT_SEEDS):
@@ -397,10 +393,11 @@ def main(argv=None) -> int:
         "evaluation_directions": [item[0] for item in DIRECTION_EVALUATIONS],
         "config": str(config.relative_to(ROOT)) if config.is_relative_to(ROOT)
         else str(config),
-        "formal_config": str(FORMAL_CONFIG.relative_to(ROOT)),
+        "config_profiles": {
+            "training": "validation_candidate",
+            "formal_evaluation": "formal_frozen",
+        },
         "config_sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
-        "formal_config_sha256": hashlib.sha256(
-            FORMAL_CONFIG.read_bytes()).hexdigest(),
         "evaluation_plan": evaluation_plan,
         "augmentation": cfg.get("augmentation", {}),
         "resolved_runtime": runtime,
@@ -429,10 +426,8 @@ def main(argv=None) -> int:
                 "该运行目录属于旧流程，不能原位续跑；请使用新 RUN_ID 以保留旧日志")
         if (previous_manifest.get("seeds") != list(seeds) or
                 previous_manifest.get("config") != payload["config"] or
-                previous_manifest.get("formal_config") != payload["formal_config"] or
-                previous_manifest.get("config_sha256") != payload["config_sha256"] or
-                previous_manifest.get("formal_config_sha256") !=
-                payload["formal_config_sha256"]):
+                previous_manifest.get("config_profiles") != payload["config_profiles"] or
+                previous_manifest.get("config_sha256") != payload["config_sha256"]):
             raise RuntimeError("续跑配置与原 manifest 不一致；请使用新 RUN_ID")
     run_dir.mkdir(parents=True, exist_ok=True)
     if not args.resume:
@@ -468,7 +463,7 @@ def main(argv=None) -> int:
     manifest_payload["validation_summary"] = str(validation_path)
 
     test_jobs, planned_tests = build_formal_test_jobs(
-        python, cfg, run_id, seeds, FORMAL_CONFIG, run_dir, result_dir,
+        python, cfg, run_id, seeds, config, run_dir, result_dir,
         resume=bool(args.resume))
     manifest_payload["formal_test_plan"] = planned_tests
     manifest.write_text(json.dumps(manifest_payload, ensure_ascii=False, indent=2),

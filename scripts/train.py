@@ -65,7 +65,7 @@ def build_model(num_classes: int, cfg: dict, device: torch.device) -> torch.nn.M
 
 def run_training(config_path: Path, dataset: str, seed: int, run_id: str = "manual",
                  init_checkpoint: Path | None = None, batch_size: int | None = None) -> Path:
-    cfg = load_config(str(config_path))
+    cfg = load_config(str(config_path), profile="validation_candidate")
     safe_token(dataset, "--dataset")
     cfg.setdefault("dataset", {})["name"] = dataset
     cfg["training"]["seed"] = seed

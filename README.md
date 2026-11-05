@@ -22,13 +22,13 @@ python -m pip install -r requirements.txt
 ## Repository Structure
 
 ```text
-configs/          Training and formal evaluation configurations
+configs/          Main experiment configuration
 data_process/    Trace conversion, fixed splits, and count-cache preparation
 src/              Main model, data loading, trainer, and utilities
 scripts/          Main workflow, single-task training, and evaluation
 ```
 
-`configs/default.yaml` is used to orchestrate training. `configs/formal_frozen_directional_count.yaml` is used for formal evaluation. Both configurations use the same model, representation, and data root; their stage fields help prevent accidental misuse. Paths are resolved relative to the repository root, so run commands from that directory.
+`configs/default.yaml` is the only experiment configuration. It keeps shared model and training settings at the top level and defines `validation_candidate` and `formal_frozen` profiles for the two workflow stages. Training and cache preparation select the candidate profile; evaluation selects the frozen profile, which alone exposes `test_file`. Paths are resolved relative to the repository root, so run commands from that directory.
 
 ## Data Source and Preparation
 
@@ -94,7 +94,7 @@ Examples for running an individual training or evaluation task:
 ```bash
 python scripts/train.py --dataset tor_fiber --seed 42 --run-id manual_fiber42
 python scripts/test.py \
-  --config configs/formal_frozen_directional_count.yaml \
+  --config configs/default.yaml \
   --dataset tor_starlink --source-dataset tor_fiber --seed 42 \
   --checkpoint checkpoints/directional_count/candidate/manual_fiber42/tor_fiber/seed_42/best_model.pth \
   --output results/manual_fiber42/F_to_S_seed_42.json

@@ -67,7 +67,7 @@ def build_cache(source: Path, destination: Path, representation: dict,
 def main(argv=None):
     args = build_parser().parse_args(argv)
     config = args.config if args.config.is_absolute() else ROOT / args.config
-    cfg = load_config(str(config))
+    cfg = load_config(str(config), profile="validation_candidate")
     representation = cfg["representation"]
     if representation.get("kind") != "directional_count":
         raise ValueError(

@@ -67,7 +67,7 @@ def make_loader(data_path: Path, cfg: dict, seed: int | None = None) -> tuple[Da
 def evaluate_checkpoint(config_path: Path, dataset: str, checkpoint: Path, output: Path,
                         source_dataset: str | None = None, split: str | None = None,
                         seed: int | None = None) -> dict:
-    cfg = load_config(str(config_path))
+    cfg = load_config(str(config_path), profile="formal_frozen")
     safe_token(dataset, "--dataset")
     if cfg.get("experiment", {}).get("stage") != "formal_frozen":
         raise ValueError(
